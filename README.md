@@ -39,15 +39,11 @@ def build_or_load_vector_db(chunks, persist_dir=DB_DIR):
 
 
 
-**3. 语义相似度近邻检索**
+**3. 向量检索与 TF-IDF 重排**
 
-```python
-def ask_rag_llm(vector_db, question, k=4):
-    
-retrieved_docs = vector_db.similarity_search(question, k=k)
-```
+把用户的提问也转化为 512 维向量，由 Chroma 在本地找出距离最近的 12 个候选片段。程序再用 TF-IDF 比较问题与候选原文的字词匹配程度，重排后把前 4 段连同页码发给 DeepSeek。
 
-把用户的提问也转化为 512 维向量，在本地计算问题向量与全书 400 多个段落向量的**夹角余弦值**，挑出语义最接近的前 $K=4$ 个段落
+`RETRIEVAL_CANDIDATES` 默认是 12，控制本地候选数量。`RAG_CONTEXT_SIZE` 默认是 4，控制最终发给 DeepSeek 的片段数量。同一页可以包含多个片段。
 
 
 
@@ -69,7 +65,7 @@ def plot_vector_space(chunks, embeddings, sample_query, output_img="whut_handboo
 ```python
 def ask_bare_llm(question):
 
-def ask_rag_llm(vector_db, question, k=4):
+def ask_rag_llm(vector_db, question, k=RAG_CONTEXT_SIZE, *, reranker=None):
 ```
 
 将同一道题分别以“纯问题（Baseline）”和“4 段手册原文 + 问题（RAG）”发给云端大模型，输出同题对比结果
@@ -99,15 +95,24 @@ MODEL_NAME = "deepseek-flash"
 
 **3.运行**
 
-在终端运行
+在项目目录的终端运行。脚本会先运行 4 道示例题的同题对比，再提示你输入自己的问题。
 
-```python
+```bash
 python rag_experiment_demo.py
 ```
 
+想跳过示例题、直接提问时运行
+
+```bash
+python rag_experiment_demo.py --interactive
+```
+
+自定义模式会显示 RAG 回答，并在下面列出参考资料所在的 PDF 页码。同一页只显示一次。可以连续提问，输入「退出」即可结束。
+
+第一问直接检索。后续提问会参考上一轮完整问题。独立问题用原话检索，清楚的追问会显示补全后的问题，缺少关键条件时会先问一句。回复澄清问题后，程序会继续检索。这个判断会额外请求一次 DeepSeek。
 
 
 #### 相关内容
 
-**向量表示学习、余弦相似度度量、**$K$**-近邻检索（Top-**$K$**）以及主成分分析（PCA）降维可视化**
+**向量表示学习、近邻检索（Top-K）、TF-IDF 重排和主成分分析（PCA）降维可视化**
 
